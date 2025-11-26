@@ -1,7 +1,9 @@
 package daysteps
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -18,42 +20,53 @@ const (
 
 func parsePackage(data string) (int, time.Duration, error) {
 	stepTime := strings.Split(data, ",")
+
 	if len(stepTime) != 2 {
-		return 0, 0, fmt.Errorf("ожидается два значения, которые разделены запятой")
+		return 0, 0, errors.New("data parsing error")
 	}
 
-	count, err := strconv.Atoi(strings.TrimSpace(stepTime[0]))
+	//count, err := strconv.Atoi(strings.TrimSpace(stepTime[0]))
+	count, err := strconv.Atoi(stepTime[0])
+
 	if err != nil {
-		return 0, 0, fmt.Errorf("не получилось прочитать количество шагов")
+		return 0, 0, errors.New("couldn't parse the number of steps")
 	}
 
 	if count <= 0 {
-		return 0, 0, fmt.Errorf("количество шагов должно быть больше нуля")
+		return 0, 0, errors.New("the number of steps must be greater than zero")
 	}
 
-	duration, err := time.ParseDuration(strings.TrimSpace(stepTime[1]))
+	//duration, err := time.ParseDuration(strings.TrimSpace(stepTime[1]))
+	duration, err := time.ParseDuration(stepTime[1])
+
 	if err != nil {
-		return 0, 0, fmt.Errorf("не получилось прочитать время")
+		return 0, 0, errors.New("couldn't parse the time")
+	}
+
+	if duration <= time.Duration(0) {
+		return 0, 0, errors.New("duration activity is too short")
 	}
 
 	return count, duration, nil
 }
 
 func DayActionInfo(data string, weight, height float64) string {
-	count, duration, err := parsePackage(data)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
 
-	if count <= 0 {
-		fmt.Println(err)
+	count, duration, err := parsePackage(data)
+
+	if err != nil {
+		log.Print(err)
 		return ""
 	}
 
 	metricWalk := float64(count) * stepLength
-	kilometrWalk := metricWalk / mInKm
+	kmWalk := metricWalk / mInKm
 	calories, err := spentcalories.WalkingSpentCalories(count, weight, height, duration)
 
-	return fmt.Sprintf("Количество шагов: %d.\nДистанция составила %.2f км.\nВы сожгли %.2f ккал.", count, kilometrWalk, calories)
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+
+	return fmt.Sprintf("Количество шагов: %d.\nДистанция составила %.2f км.\nВы сожгли %.2f ккал.\n", count, kmWalk, calories)
 }
